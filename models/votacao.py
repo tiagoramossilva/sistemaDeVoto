@@ -1,13 +1,27 @@
-# models/votacao.py
+from models.usuario import Usuario
+from models.candidato import Candidato
+
 class Votacao:
     def __init__(self):
-        self.votos = {1: 0, 2: 0}  # Considerando dois candidatos: 1 e 2
+        self.usuarios = {}  
+        self.candidatos = {
+            1: Candidato(1, "Candidato A"),
+            2: Candidato(2, "Candidato B")
+        }  
 
-    def registrar_voto(self, candidato_id):
-        if candidato_id in self.votos:
-            self.votos[candidato_id] += 1
+    def registrar_voto(self, cpf, candidato_id):
+        if cpf in self.usuarios:
+            usuario = self.usuarios[cpf]
+            if usuario.votar():
+                if candidato_id in self.candidatos:
+                    self.candidatos[candidato_id].adicionar_voto()
+                    return "Voto registrado com sucesso!"
+                else:
+                    return "Candidato inválido"
+            else:
+                return "Você já votou!"
         else:
-            raise ValueError("Candidato inválido")
+            return "Usuário não registrado"
 
     def resultados(self):
-        return self.votos
+        return {candidato.nome: candidato.votos for candidato in self.candidatos.values()}

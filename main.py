@@ -1,4 +1,3 @@
-# main.py
 from server.servidor import Servidor
 from client.cliente import Cliente
 

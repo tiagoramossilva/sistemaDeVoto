@@ -1,39 +1,45 @@
-# server/servidor.py
 import socket
-import threading
 from models.votacao import Votacao
-from auth.firebase_config import autenticar_usuario
+from models.usuario import Usuario
 
 class Servidor:
     def __init__(self, host='localhost', port=5555):
         self.host = host
         self.port = port
-        self.votacao = Votacao()
-
-    def handle_client(self, conn, addr):
-        print(f"Nova conexão: {addr}")
-        while True:
-            try:
-                email = conn.recv(1024).decode()
-                senha = conn.recv(1024).decode()
-                if autenticar_usuario(email, senha):
-                    voto = conn.recv(1024).decode()
-                    if voto:
-                        self.votacao.registrar_voto(int(voto))
-                        conn.send("Voto registrado com sucesso!".encode())
-                else:
-                    conn.send("Autenticação falhou.".encode())
-            except:
-                break
-        conn.close()
+        self.votacao = Votacao()  
 
     def iniciar_servidor(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.bind((self.host, self.port))
         server.listen(5)
+
         print("Servidor iniciado e aguardando conexões...")
 
         while True:
             conn, addr = server.accept()
-            thread = threading.Thread(target=self.handle_client, args=(conn, addr))
-            thread.start()
+            print(f"Conectado a {addr}")
+
+            cpf = conn.recv(1024).decode()  
+            if cpf not in self.votacao.usuarios:
+                self.votacao.usuarios[cpf] = Usuario(cpf)
+
+            while True:
+                mensagem = conn.recv(1024).decode()
+                if not mensagem:
+                    break
+
+                if mensagem.startswith("voto"):
+                    _, voto = mensagem.split()
+                    resposta = self.votacao.registrar_voto(cpf, int(voto))
+                    conn.send(resposta.encode())
+                
+                elif mensagem == "resultados":
+                    resultados = self.votacao.resultados()
+                    resultado_str = "\n".join([f"{nome}: {votos} votos" for nome, votos in resultados.items()])
+                    conn.send(resultado_str.encode())
+
+                elif mensagem == "sair":
+                    conn.send("Saindo da votação.".encode())
+                    break
+
+            conn.close()
