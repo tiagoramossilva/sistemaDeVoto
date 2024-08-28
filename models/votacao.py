@@ -5,8 +5,8 @@ class Votacao:
     def __init__(self):
         self.usuarios = {}  
         self.candidatos = {
-            1: Candidato(1, "Candidato A"),
-            2: Candidato(2, "Candidato B")
+            1: Candidato(1, "Candidato A: Biscoito"),
+            2: Candidato(2, "Candidato B: Bolacha")
         }  
 
     def registrar_voto(self, cpf, candidato_id):

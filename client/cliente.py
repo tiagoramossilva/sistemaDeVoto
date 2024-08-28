@@ -15,7 +15,7 @@ class Cliente:
         while True:
             comando = input("Digite 'voto' para votar, 'resultados' para ver resultados ou 'sair' para sair: ")
             if comando == 'voto':
-                voto = input("Digite o número do candidato (1 para Candidato A, 2 para Candidato B): ")
+                voto = input("Digite o número do candidato: 1 para Candidato A: Biscoito ou 2 para Candidato B: Bolacha): ")
                 client.send(f"voto {voto}".encode())
                 resposta = client.recv(1024).decode()
                 print(resposta)
