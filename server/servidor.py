@@ -1,13 +1,18 @@
-import socket
+import pika
 import threading
+import socket
+import json
 from models.votacao import Votacao
 from models.usuario import Usuario
 
 class Servidor:
-    def __init__(self, host='localhost', port=5555):
+    def __init__(self, host='localhost', port=5562, rabbitmq_host='189.8.205.54', rabbitmq_port=5672):
         self.host = host
         self.port = port
+        self.rabbitmq_host = rabbitmq_host
+        self.rabbitmq_port = rabbitmq_port
         self.votacao = Votacao()
+        self.resultados = {} 
 
     def iniciar_servidor(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -15,6 +20,9 @@ class Servidor:
         server.listen(5)
 
         print("Servidor iniciado e aguardando conexões...")
+
+        threading.Thread(target=self.consumir_votos, daemon=True).start()
+        threading.Thread(target=self.coletar_resultados_de_outros, daemon=True).start()
 
         while True:
             conn, addr = server.accept()
@@ -37,8 +45,8 @@ class Servidor:
                 conn.send(resposta.encode())
 
             elif mensagem == "resultados":
-                resultados = self.votacao.resultados()
-                resultado_str = "\n".join([f"{nome}: {votos} votos" for nome, votos in resultados.items()])
+                resultados = self.get_resultados_agregados()
+                resultado_str = "\n".join([f"Candidato {nome}: {votos} votos" for nome, votos in resultados.items()])
                 conn.send(resultado_str.encode())
 
             elif mensagem == "sair":
@@ -46,3 +54,36 @@ class Servidor:
                 break
 
         conn.close()
+
+    def consumir_votos(self):
+        try:
+            credentials = pika.PlainCredentials('admin', 'admin')
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(host=self.rabbitmq_host, port=self.rabbitmq_port, credentials=credentials)
+            )
+            channel = connection.channel()
+            channel.queue_declare(queue='votos')
+
+            def callback(ch, method, properties, body):
+                voto = json.loads(body.decode())
+                cpf = voto['cpf']
+                voto = voto['voto']
+                self.votacao.registrar_voto(cpf, voto)
+                print(f"Voto recebido: CPF={cpf}, Voto={voto}")
+
+            channel.basic_consume(queue='votos', on_message_callback=callback, auto_ack=True)
+
+            print('Aguardando votos. Pressione Ctrl+C para sair.')
+            channel.start_consuming()
+
+        except Exception as e:
+            print(f"Erro ao conectar ao RabbitMQ: {e}")
+
+    def coletar_resultados_de_outros(self):
+        while True:
+            #  implementar a coleta de resultados de outros servidores
+            pass
+
+    def get_resultados_agregados(self):
+        resultados_locais = self.votacao.resultados()
+        return resultados_locais

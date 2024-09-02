@@ -1,4 +1,3 @@
-from models.usuario import Usuario
 from models.candidato import Candidato
 
 class Votacao:
