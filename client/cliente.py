@@ -3,22 +3,27 @@ import json
 import socket
 
 class Cliente:
-    def __init__(self, rabbitmq_host='189.8.205.54', rabbitmq_port=5672, servidor_host='localhost', servidor_port=5562):
+    def __init__(self, rabbitmq_host='189.8.205.54', rabbitmq_port=5672, servidor_host='localhost', servidor_port=5563):
         self.rabbitmq_host = rabbitmq_host
         self.rabbitmq_port = rabbitmq_port
         self.servidor_host = servidor_host
         self.servidor_port = servidor_port
 
     def enviar_voto(self, cpf, voto):
-        credentials = pika.PlainCredentials('admin', 'admin')
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.rabbitmq_host, port=self.rabbitmq_port, credentials=credentials))
-        channel = connection.channel()
-        channel.queue_declare(queue='votos')
+        try:
+            credentials = pika.PlainCredentials('admin', 'admin')
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(host=self.rabbitmq_host, port=self.rabbitmq_port, credentials=credentials)
+            )
+            channel = connection.channel()
+            channel.queue_declare(queue='votos')
 
-        mensagem = json.dumps({'cpf': cpf, 'voto': voto})
-        channel.basic_publish(exchange='', routing_key='votos', body=mensagem)
+            mensagem = json.dumps({'cpf': cpf, 'voto': voto})
+            channel.basic_publish(exchange='', routing_key='votos', body=mensagem)
 
-        connection.close()
+            connection.close()
+        except Exception as e:
+            print(f"Erro ao enviar voto: {e}")
 
     def solicitar_resultados(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

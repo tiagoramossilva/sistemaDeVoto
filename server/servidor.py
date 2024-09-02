@@ -6,13 +6,13 @@ from models.votacao import Votacao
 from models.usuario import Usuario
 
 class Servidor:
-    def __init__(self, host='localhost', port=5562, rabbitmq_host='189.8.205.54', rabbitmq_port=5672):
+    def __init__(self, host='localhost', port=5563, rabbitmq_host='189.8.205.54', rabbitmq_port=5672):
         self.host = host
         self.port = port
         self.rabbitmq_host = rabbitmq_host
         self.rabbitmq_port = rabbitmq_port
         self.votacao = Votacao()
-        self.resultados = {} 
+        self.resultados = {}
 
     def iniciar_servidor(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -80,9 +80,21 @@ class Servidor:
             print(f"Erro ao conectar ao RabbitMQ: {e}")
 
     def coletar_resultados_de_outros(self):
-        while True:
-            #  implementar a coleta de resultados de outros servidores
-            pass
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('0.0.0.0', 0))  # Bind a uma porta disponível
+            s.listen(5)
+            while True:
+                conn, addr = s.accept()
+                with conn:
+                    dados = conn.recv(1024).decode()
+                    if dados:
+                        resultados = json.loads(dados)
+                        # Atualize seus resultados locais com os resultados recebidos
+                        for cpf, votos in resultados.items():
+                            if cpf in self.votacao.usuarios:
+                                self.votacao.usuarios[cpf].votos += votos
+                            else:
+                                self.votacao.usuarios[cpf] = Usuario(cpf, votos)
 
     def get_resultados_agregados(self):
         resultados_locais = self.votacao.resultados()
