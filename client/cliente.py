@@ -1,65 +1,61 @@
 import pika
 import json
-import socket
 
 class Cliente:
-    def __init__(self, rabbitmq_host='189.8.205.54', rabbitmq_port=5672, servidor_host='localhost', servidor_port=5563):
+    def __init__(self, rabbitmq_host='189.8.205.54', rabbitmq_port=5672):
         self.rabbitmq_host = rabbitmq_host
         self.rabbitmq_port = rabbitmq_port
-        self.servidor_host = servidor_host
-        self.servidor_port = servidor_port
+        self.connection = None
+        self.channel = None
 
-    def enviar_voto(self, cpf, voto):
-        try:
-            credentials = pika.PlainCredentials('admin', 'admin')
-            connection = pika.BlockingConnection(
-                pika.ConnectionParameters(host=self.rabbitmq_host, port=self.rabbitmq_port, credentials=credentials)
+    def configurar_conexao(self):
+        """Configura a conexão e o canal com o RabbitMQ."""
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(
+                host=self.rabbitmq_host,
+                port=self.rabbitmq_port,
+                credentials=pika.PlainCredentials('admin', 'admin')
             )
-            channel = connection.channel()
-            channel.queue_declare(queue='votos')
-
-            mensagem = json.dumps({'cpf': cpf, 'voto': voto})
-            channel.basic_publish(exchange='', routing_key='votos', body=mensagem)
-
-            connection.close()
-        except Exception as e:
-            print(f"Erro ao enviar voto: {e}")
-
-    def solicitar_resultados(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.servidor_host, self.servidor_port))
-            s.sendall("resultados".encode())
-            resultados = s.recv(4096).decode()
-            print("Resultados recebidos:")
-            print(resultados)
+        )
+        self.channel = self.connection.channel()
+        self.channel.queue_declare(queue='votos')
+        self.channel.queue_declare(queue='resultados')
 
     def iniciar_cliente(self):
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((self.servidor_host, self.servidor_port))
+        """Inicia o cliente e começa a consumir mensagens da fila 'votos'."""
+        if not self.channel:
+            self.configurar_conexao()
 
-        cpf = input("Digite seu CPF sem pontuação (XXXXXXXXXXX): ")
-        client.send(cpf.encode())  
+        def callback(ch, method, properties, body):
+            print(f"Mensagem recebida: {body.decode()}")
 
-        while True:
-            comando = input("Digite 'voto' para votar, 'resultados' para ver resultados ou 'sair' para sair: ")
-            if comando == 'voto':
-                voto = input("Digite o número do candidato: 1 para Candidato A: Biscoito ou 2 para Candidato B: Bolacha): ")
-                client.send(f"voto {voto}".encode())
-                resposta = client.recv(1024).decode()
-                print(resposta)
-            
-            elif comando == 'resultados':
-                client.send("resultados".encode())
-                resposta = client.recv(1024).decode()
-                print(resposta)
-            
-            elif comando == 'sair':
-                client.send("sair".encode())
-                resposta = client.recv(1024).decode()
-                print(resposta)
-                break
-            
-            else:
-                print("Comando inválido.")
-        
-        client.close()
+        self.channel.basic_consume(queue='votos', on_message_callback=callback, auto_ack=True)
+        print("Aguardando mensagens. Pressione Ctrl+C para sair.")
+        self.channel.start_consuming()
+
+    def enviar_voto(self, cpf, voto):
+        """Envia um voto para a fila 'votos'."""
+        if not self.connection:
+            self.configurar_conexao()
+
+        voto_message = {'cpf': cpf, 'voto': voto}
+        self.channel.basic_publish(exchange='', routing_key='votos', body=json.dumps(voto_message))
+        print(f"Voto enviado: CPF={cpf}, Voto={voto}")
+
+    def solicitar_resultados(self):
+        """Solicita resultados da fila 'resultados'."""
+        if not self.connection:
+            self.configurar_conexao()
+
+        self.channel.basic_publish(exchange='', routing_key='resultados', body='solicitar_resultados')
+        print("Solicitação de resultados enviada")
+
+    def fechar_conexao(self):
+        """Fecha a conexão com o RabbitMQ."""
+        if self.connection:
+            self.connection.close()
+            print("Conexão fechada.")
+
+if __name__ == "__main__":
+    cliente = Cliente()
+    cliente.iniciar_cliente()
