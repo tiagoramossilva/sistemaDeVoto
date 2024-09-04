@@ -2,16 +2,16 @@ from server.servidor import Servidor
 from client.cliente import Cliente
 
 def main():
-    opcao = input("Escolha 'servidor' para iniciar o servidor ou 'cliente' para iniciar o cliente: ")
+    escolha = input("Escolha 'servidor' para iniciar o servidor ou 'cliente' para iniciar o cliente: ")
     
-    if opcao == 'servidor':
+    if escolha == 'servidor':
         servidor = Servidor()
         servidor.iniciar_servidor()
-    elif opcao == 'cliente':
+    elif escolha == 'cliente':
         cliente = Cliente()
-        cliente.iniciar_cliente()
+        cliente.iniciar_cliente()  # Iniciar cliente já cuida do menu e das opções
     else:
-        print("Opção inválida.")
+        print("Escolha inválida. Tente novamente.")
 
 if __name__ == "__main__":
     main()

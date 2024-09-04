@@ -1,5 +1,7 @@
 import pika
-import threading
+import json
+from models.votacao import Votacao
+from models.candidato import Candidato
 
 class Servidor:
     def __init__(self):
@@ -7,66 +9,37 @@ class Servidor:
             pika.ConnectionParameters(
                 host='189.8.205.54',
                 port=5672,
+                virtual_host='thanos',
                 credentials=pika.PlainCredentials('admin', 'admin')
             )
         )
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue='votos')
-        self.channel.queue_declare(queue='resultados')
+        self.channel.exchange_declare(exchange='votos', exchange_type='direct', durable=True)
+        self.channel.queue_declare(queue='votos', durable=True)
+        self.channel.queue_declare(queue='resultados', durable=True)
+        self.channel.queue_bind(exchange='votos', queue='votos')
+        self.channel.queue_bind(exchange='votos', queue='resultados')
+
+        self.votacao = Votacao()
+
+    def callback(self, ch, method, properties, body):
+        mensagem = body.decode()
+        if mensagem == 'solicitar_resultados':
+            resultados = self.votacao.exportar_resultados()
+            self.channel.basic_publish(exchange='votos', routing_key='resultados', body=resultados)
+        else:
+            cpf, candidato_id = mensagem.split(':')
+            resposta = self.votacao.registrar_voto(cpf, int(candidato_id))
+            print(resposta)
 
     def iniciar_servidor(self):
-        print("Servidor iniciado e aguardando conexões...")
-        # Cria conexões e canais separados para cada thread
-        threading.Thread(target=self.iniciar_consumo_votos, daemon=True).start()
-        threading.Thread(target=self.iniciar_consumo_resultados, daemon=True).start()
-        # Mantém o programa em execução
-        try:
-            while True:
-                pass
-        except KeyboardInterrupt:
-            print("Servidor encerrado.")
-            self.connection.close()
+        self.channel.basic_consume(queue='votos', on_message_callback=self.callback, auto_ack=True)
+        print("Servidor pronto. Aguardando votos e solicitações de resultados...")
+        self.channel.start_consuming()
 
-    def iniciar_consumo_votos(self):
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(
-                host='189.8.205.54',
-                port=5672,
-                credentials=pika.PlainCredentials('admin', 'admin')
-            )
-        )
-        channel = connection.channel()
-        channel.queue_declare(queue='votos')
-
-        def callback(ch, method, properties, body):
-            voto = body.decode()
-            print(f"Voto recebido: {voto}")
-            # Processa o voto
-
-        channel.basic_consume(queue='votos', on_message_callback=callback, auto_ack=True)
-        print("Aguardando votos. Pressione Ctrl+C para sair.")
-        channel.start_consuming()
-
-    def iniciar_consumo_resultados(self):
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(
-                host='189.8.205.54',
-                port=5672,
-                credentials=pika.PlainCredentials('admin', 'admin')
-            )
-        )
-        channel = connection.channel()
-        channel.queue_declare(queue='resultados')
-
-        def callback(ch, method, properties, body):
-            resultado = body.decode()
-            print(f"Resultado recebido: {resultado}")
-            # Processa o resultado
-
-        channel.basic_consume(queue='resultados', on_message_callback=callback, auto_ack=True)
-        print("Aguardando resultados de outros servidores. Pressione Ctrl+C para sair.")
-        channel.start_consuming()
-
-if __name__ == "__main__":
+def main():
     servidor = Servidor()
     servidor.iniciar_servidor()
+
+if __name__ == "__main__":
+    main()
