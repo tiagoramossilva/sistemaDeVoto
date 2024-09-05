@@ -9,7 +9,7 @@ def main():
         servidor.iniciar_servidor()
     elif escolha == 'cliente':
         cliente = Cliente()
-        cliente.iniciar_cliente()  # Iniciar cliente já cuida do menu e das opções
+        cliente.iniciar_cliente() 
     else:
         print("Escolha inválida. Tente novamente.")
 

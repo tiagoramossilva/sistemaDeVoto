@@ -1,7 +1,6 @@
 import pika
-import json
+import threading
 from models.votacao import Votacao
-from models.candidato import Candidato
 
 class Servidor:
     def __init__(self):
@@ -22,7 +21,7 @@ class Servidor:
 
         self.votacao = Votacao()
 
-    def callback(self, ch, method, properties, body):
+    def callback(self, body):
         mensagem = body.decode()
         if mensagem == 'solicitar_resultados':
             resultados = self.votacao.exportar_resultados()
@@ -35,11 +34,6 @@ class Servidor:
     def iniciar_servidor(self):
         self.channel.basic_consume(queue='votos', on_message_callback=self.callback, auto_ack=True)
         print("Servidor pronto. Aguardando votos e solicitações de resultados...")
-        self.channel.start_consuming()
 
-def main():
-    servidor = Servidor()
-    servidor.iniciar_servidor()
-
-if __name__ == "__main__":
-    main()
+        thread = threading.Thread(target=self.channel.start_consuming)
+        thread.start()

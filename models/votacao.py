@@ -1,5 +1,3 @@
-from models.usuario import Usuario
-from models.candidato import Candidato
 import json
 
 class Votacao:
@@ -8,7 +6,7 @@ class Votacao:
             'Candidato A': 0,
             'Candidato B': 0
         }
-        self.usuarios = {}  # Usado para rastrear usuários que já votaram
+        self.usuarios = {} 
 
     def registrar_voto(self, cpf, candidato_id):
         if cpf in self.usuarios:

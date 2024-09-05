@@ -1,5 +1,6 @@
 import pika
 from models.usuario import Usuario
+import threading
 
 class Cliente:
     def __init__(self):
@@ -17,11 +18,13 @@ class Cliente:
         self.channel.queue_bind(exchange='votos', queue='resultados')
 
         self.usuario = None
+        self.resultados_recebidos = False
 
     def callback(self, ch, method, properties, body):
         resultado = body.decode()
-        print("Resultados recebidos:")
+        print("\nResultados recebidos:")
         print(resultado)
+        self.resultados_recebidos = True
         self.channel.stop_consuming()
 
     def iniciar_cliente(self):
@@ -31,7 +34,8 @@ class Cliente:
             if escolha == '1':
                 self.votar()
             elif escolha == '2':
-                self.ver_resultados()
+                thread_resultados = threading.Thread(target=self.ver_resultados)
+                thread_resultados.start()
             elif escolha == '3':
                 print("Saindo...")
                 self.connection.close()
@@ -43,23 +47,25 @@ class Cliente:
         if not self.usuario:
             cpf = input("Digite seu CPF para continuar: ")
             self.usuario = Usuario(cpf)
-        
+
         if self.usuario.votou:
             print("Você já votou.")
             return
 
-        candidato_id = input("Digite o número do seu candidato (1 para Candidato A, 2 para Candidato B): ")
+        candidato_id = input("Digite o número do seu candidato 1 - para Candidato A ou 2 - para Candidato B: ")
         mensagem = f"{self.usuario.cpf}:{candidato_id}"
         self.channel.basic_publish(exchange='votos', routing_key='votos', body=mensagem)
         self.usuario.votar()
         print("Voto enviado.")
 
     def ver_resultados(self):
-        # Publicar uma mensagem para solicitar resultados
+        self.resultados_recebidos = False
         self.channel.basic_publish(exchange='votos', routing_key='votos', body='solicitar_resultados')
         print("Aguardando resultados...")
+
         self.channel.basic_consume(queue='resultados', on_message_callback=self.callback, auto_ack=True)
-        self.channel.start_consuming()
+        while not self.resultados_recebidos:
+            self.connection.process_data_events(time_limit=1) 
 
 def main():
     cliente = Cliente()
