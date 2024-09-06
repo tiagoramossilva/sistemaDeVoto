@@ -31,10 +31,19 @@ class Servidor:
             resposta = self.votacao.registrar_voto(cpf, int(candidato_id))
             print(resposta)
 
-
     def iniciar_servidor(self):
         self.channel.basic_consume(queue='votos', on_message_callback=self.callback, auto_ack=True)
         print("Servidor pronto. Aguardando votos e solicitações de resultados...")
 
-        thread = threading.Thread(target=self.channel.start_consuming)
+        def consume_messages():
+            self.channel.start_consuming()
+
+        thread = threading.Thread(target=consume_messages)
         thread.start()
+
+def main():
+    servidor = Servidor()
+    servidor.iniciar_servidor()
+
+if __name__ == "__main__":
+    main()
