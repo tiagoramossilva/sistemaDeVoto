@@ -1,4 +1,5 @@
 import pika
+import time
 from models.usuario import Usuario
 
 class Cliente:
@@ -41,6 +42,8 @@ class Cliente:
             else:
                 print("Opção inválida.")
 
+    
+
     def votar(self):
         if not self.usuario:
             cpf = input("Digite seu CPF para continuar: ")
@@ -55,6 +58,8 @@ class Cliente:
         self.channel.basic_publish(exchange='votos', routing_key='votos', body=mensagem)
         self.usuario.votar()
         print("Voto enviado.")
+        time.sleep(1)  # Pausa para garantir que o voto seja processado
+
 
     def ver_resultados(self):
         self.resultados_recebidos = False
@@ -62,9 +67,14 @@ class Cliente:
         print("Aguardando resultados...")
 
         self.channel.basic_consume(queue='resultados', on_message_callback=self.callback, auto_ack=True)
-        
+
         while not self.resultados_recebidos:
             self.connection.process_data_events()
+            # Adicionar um pequeno delay para evitar uso excessivo da CPU
+            import time
+            time.sleep(0.1)
+
+
         
 def main():
     cliente = Cliente()

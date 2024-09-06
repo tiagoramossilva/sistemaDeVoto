@@ -23,13 +23,17 @@ class Servidor:
 
     def callback(self, ch, method, properties, body):
         mensagem = body.decode()
+        print(f"Mensagem recebida: {mensagem}")  # Adicione log para depuração
         if mensagem == 'solicitar_resultados':
             resultados = self.votacao.exportar_resultados()
+            print(f"Enviando resultados: {resultados}")  # Adicione log para depuração
             self.channel.basic_publish(exchange='votos', routing_key='resultados', body=resultados)
         else:
             cpf, candidato_id = mensagem.split(':')
             resposta = self.votacao.registrar_voto(cpf, int(candidato_id))
             print(resposta)
+
+
 
     def iniciar_servidor(self):
         self.channel.basic_consume(queue='votos', on_message_callback=self.callback, auto_ack=True)
