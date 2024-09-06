@@ -21,7 +21,7 @@ class Servidor:
 
         self.votacao = Votacao()
 
-    def callback(self, body):
+    def callback(self, ch, method, properties, body):
         mensagem = body.decode()
         if mensagem == 'solicitar_resultados':
             resultados = self.votacao.exportar_resultados()
@@ -30,6 +30,7 @@ class Servidor:
             cpf, candidato_id = mensagem.split(':')
             resposta = self.votacao.registrar_voto(cpf, int(candidato_id))
             print(resposta)
+
 
     def iniciar_servidor(self):
         self.channel.basic_consume(queue='votos', on_message_callback=self.callback, auto_ack=True)

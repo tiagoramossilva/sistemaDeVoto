@@ -64,8 +64,10 @@ class Cliente:
         print("Aguardando resultados...")
 
         self.channel.basic_consume(queue='resultados', on_message_callback=self.callback, auto_ack=True)
+
         while not self.resultados_recebidos:
-            self.connection.process_data_events(time_limit=1) 
+            self.connection.process_data_events()
+
 
 def main():
     cliente = Cliente()
