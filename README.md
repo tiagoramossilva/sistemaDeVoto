@@ -22,14 +22,10 @@ Como Rodar o Projeto
 1. Iniciar o Servidor
 Antes de executar o cliente, inicie o servidor. O servidor será responsável por receber os votos e gerenciar o resultado da votação.
 
-python main.py
-Escolha servidor quando solicitado.
 
 2. Iniciar o Cliente
 Após iniciar o servidor, execute o cliente para votar ou visualizar os resultados.
 
-python main.py
-Escolha cliente quando solicitado.
 
 Você pode realizar as seguintes operações:
 
